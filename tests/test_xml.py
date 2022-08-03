@@ -1,6 +1,8 @@
 import unittest
+from unittest.mock import patch
 
-from argo_probe_xml.exceptions import XMLParseException
+import requests.exceptions
+from argo_probe_xml.exceptions import XMLParseException, RequestException
 from argo_probe_xml.xml import XML
 
 xml1 = b"<aris>" \
@@ -126,12 +128,35 @@ xml3 = b"<aris>" \
          b"</partition>"
 
 
+class MockResponse:
+    def __init__(self, data, status_code):
+        self.content = data
+        self.status_code = status_code
+        self.reason = "BAD REQUEST"
+
+    def raise_for_status(self):
+        if not str(self.status_code).startswith("2"):
+            raise requests.exceptions.HTTPError(
+                f"{self.status_code} {self.reason}"
+            )
+
+
+def mock_response_ok(*args, **kwargs):
+    return MockResponse(xml1, status_code=200)
+
+
+def mock_response_500(*args, **kwargs):
+    return MockResponse(None, status_code=500)
+
+
 class XMLParseTests(unittest.TestCase):
     def setUp(self):
-        self.xml1 = XML(xml1)
-        self.xml2 = XML(xml2)
+        self.xml1 = XML("https://mock1.url.com")
+        self.xml2 = XML("https://mock2.url.com")
 
-    def test_parse(self):
+    @patch("argo_probe_xml.xml.XML._get")
+    def test_parse(self, mock_get):
+        mock_get.side_effect = [xml1, xml2, xml2]
         self.assertEqual(
             self.xml1.parse("/aris/partition/state_up"),
             ["up", "up", "up", "up", "up", "up", "up"]
@@ -145,7 +170,9 @@ class XMLParseTests(unittest.TestCase):
             ["somebody@loc.gov", "anybody@loc.gov"]
         )
 
-    def test_parse_if_missing_element(self):
+    @patch("argo_probe_xml.xml.XML._get")
+    def test_parse_if_missing_element(self, mock_get):
+        mock_get.return_value = xml1
         with self.assertRaises(XMLParseException) as context:
             self.xml1.parse("/aris/partition/nonexisting")
 
@@ -154,9 +181,12 @@ class XMLParseTests(unittest.TestCase):
             "Unable to find element with XPath /aris/partition/nonexisting"
         )
 
-    def test_parse_if_wrong_format(self):
+    @patch("argo_probe_xml.xml.XML._get")
+    def test_parse_if_wrong_format(self, mock_get):
+        mock_get.return_value = xml3
+        xml = XML("https://mock3.url.com")
         with self.assertRaises(XMLParseException) as context:
-            XML(xml3)
+            xml.parse("bla")
 
         self.assertEqual(
             context.exception.__str__(),
@@ -165,19 +195,15 @@ class XMLParseTests(unittest.TestCase):
             "(<string>, line 1)"
         )
 
-    def test_check_value(self):
-        self.assertEqual(
-            self.xml1.check_value("/aris/partition/state_up", "up"),
-            [True, True, True, True, True, True, True]
-        )
-        self.assertTrue(
-            self.xml2.check_value(
-                "/OAI-PMH/Identify/granularity", "YYYY-MM-DDThh:mm:ssZ"
-            )
-        )
-        self.assertEqual(
-            self.xml2.check_value(
-                "/OAI-PMH/Identify/adminEmail", "somebody@loc.gov"
-            ),
-            [True, False]
+    @patch("requests.get")
+    def test_get_data(self, mock_get):
+        mock_get.side_effect = mock_response_ok
+        data = self.xml1._get()
+        self.assertEqual(data, xml1)
+
+    @patch("requests.get")
+    def test_get_data_with_exception(self, mock_get):
+        mock_get.side_effect = mock_response_500
+        self.assertRaises(
+            RequestException, self.xml1._get
         )
