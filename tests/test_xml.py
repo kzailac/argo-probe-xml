@@ -262,3 +262,139 @@ class XMLParseTests(unittest.TestCase):
             call(xpath="/mock/path"),
             call(xpath="/mock/path2")
         ])
+
+    @patch("argo_probe_xml.xml.XML.parse")
+    def test_warning_threshold(self, mock_parse):
+        rv1 = [5, 4, 59, 15, 0, 0, 3]
+        rv2 = 60
+        mock_parse.side_effect = [
+            rv1, rv1, rv1, rv1, rv1, rv2, rv2, rv2, rv2, rv2
+        ]
+
+        self.assertEqual(
+            self.xml1.warning(
+                xpath="/aris/partition/running_jobs", threshold="60"
+            ), "OK"
+        )
+
+        with self.assertRaises(WarningException) as context1:
+            self.xml1.warning(
+                xpath="/aris/partition/running_jobs", threshold="50"
+            )
+
+        with self.assertRaises(WarningException) as context2:
+            self.xml1.warning(
+                xpath="/aris/partition/running_jobs", threshold="50:"
+            )
+
+        self.assertEqual(
+            self.xml1.warning(
+                xpath="/aris/partition/running_jobs", threshold="0:70"
+            ), "OK"
+        )
+
+        with self.assertRaises(WarningException) as context3:
+            self.xml1.warning(
+                xpath="/aris/partition/running_jobs", threshold="@10:50"
+            )
+
+        self.assertEqual(
+            self.xml1.warning(xpath="/mock/path", threshold="60"), "OK"
+        )
+
+        with self.assertRaises(WarningException) as context4:
+            self.xml1.warning(xpath="/mock/path", threshold="10:50")
+
+        self.assertEqual(
+            self.xml1.warning(xpath="/mock/path", threshold="10:"), "OK"
+        )
+        self.assertEqual(
+            self.xml1.warning(xpath="/mock/path", threshold="@10:50"), "OK"
+        )
+
+        self.assertEqual(
+            context1.exception.__str__(),
+            "Partition 2 running_jobs outside range [0, 50.0]"
+        )
+
+        self.assertEqual(
+            context2.exception.__str__(),
+            "Partitions 0, 1, 3, 4, 5, 6 running_jobs outside range [50.0, Inf]"
+        )
+
+        self.assertEqual(
+            context3.exception.__str__(),
+            "Partition 3 running_jobs inside range [10.0, 50.0]"
+        )
+
+        self.assertEqual(
+            context4.exception.__str__(), "Value outside range [10.0, 50.0]"
+        )
+
+    @patch("argo_probe_xml.xml.XML.parse")
+    def test_critical_threshold(self, mock_parse):
+        rv1 = [5, 4, 59, 15, 0, 0, 3]
+        rv2 = 60
+        mock_parse.side_effect = [
+            rv1, rv1, rv1, rv1, rv1, rv2, rv2, rv2, rv2, rv2
+        ]
+
+        self.assertEqual(
+            self.xml1.critical(
+                xpath="/aris/partition/running_jobs", threshold="60"
+            ), "OK"
+        )
+
+        with self.assertRaises(CriticalException) as context1:
+            self.xml1.critical(
+                xpath="/aris/partition/running_jobs", threshold="50"
+            )
+
+        with self.assertRaises(CriticalException) as context2:
+            self.xml1.critical(
+                xpath="/aris/partition/running_jobs", threshold="50:"
+            )
+
+        self.assertEqual(
+            self.xml1.critical(
+                xpath="/aris/partition/running_jobs", threshold="0:70"
+            ), "OK"
+        )
+
+        with self.assertRaises(CriticalException) as context3:
+            self.xml1.critical(
+                xpath="/aris/partition/running_jobs", threshold="@10:50"
+            )
+
+        self.assertEqual(
+            self.xml1.critical(xpath="/mock/path", threshold="60"), "OK"
+        )
+
+        with self.assertRaises(CriticalException) as context4:
+            self.xml1.critical(xpath="/mock/path", threshold="10:50")
+
+        self.assertEqual(
+            self.xml1.critical(xpath="/mock/path", threshold="10:"), "OK"
+        )
+        self.assertEqual(
+            self.xml1.critical(xpath="/mock/path", threshold="@10:50"), "OK"
+        )
+
+        self.assertEqual(
+            context1.exception.__str__(),
+            "Partition 2 running_jobs outside range [0, 50.0]"
+        )
+
+        self.assertEqual(
+            context2.exception.__str__(),
+            "Partitions 0, 1, 3, 4, 5, 6 running_jobs outside range [50.0, Inf]"
+        )
+
+        self.assertEqual(
+            context3.exception.__str__(),
+            "Partition 3 running_jobs inside range [10.0, 50.0]"
+        )
+
+        self.assertEqual(
+            context4.exception.__str__(), "Value outside range [10.0, 50.0]"
+        )
