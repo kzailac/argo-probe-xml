@@ -27,6 +27,16 @@ def main():
         help="XPath of the required child node(s)"
     )
     optional.add_argument(
+        "--ok",  dest="ok", type=str,
+        help="OK value of the node with given XPath"
+    )
+    optional.add_argument(
+        "--hard", action="store_true", dest="hard",
+        help="if requested node is a list, all the elements will have to be "
+             "equal to the given value to return OK; by default it is enough "
+             "to have one element equal to the given value to return OK"
+    )
+    optional.add_argument(
         "-h", "--help", action="help", default=argparse.SUPPRESS,
         help="Show this help message and exit"
     )
@@ -37,15 +47,35 @@ def main():
     xml = XML(url=args.url, timeout=args.timeout)
 
     try:
-        node = xml.parse(xpath=args.xpath)
+        if args.ok:
+            if xml.equal(xpath=args.xpath, value=args.ok, hard=args.hard):
+                if args.hard:
+                    nagios.ok(f"All the node(s) values equal to '{args.ok}'")
 
-        if node:
-            nagios.ok(f"Node with XPath {args.xpath} found")
+                else:
+                    nagios.ok(f"There are node(s) values equal to '{args.ok}'")
+
+            else:
+                if args.hard:
+                    nagios.critical(
+                        f"Not all node(s) values equal to '{args.ok}'"
+                    )
+
+                else:
+                    nagios.critical(
+                        f"None of the node(s) values are equal to '{args.ok}'"
+                    )
 
         else:
-            nagios.warning(
-                f"Node with XPath {args.xpath} found but not defined"
-            )
+            node = xml.parse(xpath=args.xpath)
+
+            if node:
+                nagios.ok(f"Node with XPath '{args.xpath}' found")
+
+            else:
+                nagios.warning(
+                    f"Node with XPath '{args.xpath}' found but not defined"
+                )
 
     except XMLParseException as e:
         nagios.critical(str(e))

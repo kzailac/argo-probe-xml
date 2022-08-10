@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, call
 
 import requests.exceptions
 from argo_probe_xml.exceptions import XMLParseException, RequestException
@@ -207,3 +207,57 @@ class XMLParseTests(unittest.TestCase):
         self.assertRaises(
             RequestException, self.xml1._get
         )
+
+    @patch("argo_probe_xml.xml.XML.parse")
+    def test_hard_equal(self, mock_parse):
+        rv1 = ["up", "up", "up", "up"]
+        rv2 = ["up", "down", "up", "up"]
+        rv3 = "test"
+        rv4 = "test4"
+        mock_parse.side_effect = [rv1, rv2, rv3, rv4]
+        self.assertTrue(
+            self.xml1.equal(xpath="/aris/partition/state_up", value="up")
+        )
+        self.assertFalse(
+            self.xml1.equal(xpath="/aris/partition/state_down", value="up")
+        )
+        self.assertTrue(self.xml1.equal(xpath="/mock/path", value="test"))
+        self.assertFalse(self.xml1.equal(xpath="/mock/path2", value="test"))
+        self.assertEqual(mock_parse.call_count, 4)
+        mock_parse.assert_has_calls([
+            call(xpath="/aris/partition/state_up"),
+            call(xpath="/aris/partition/state_down"),
+            call(xpath="/mock/path"),
+            call(xpath="/mock/path2")
+        ])
+
+    @patch("argo_probe_xml.xml.XML.parse")
+    def test_soft_equal(self, mock_parse):
+        rv1 = ["up", "up", "up", "up"]
+        rv2 = ["up", "down", "up", "up"]
+        rv3 = "test"
+        rv4 = "test4"
+        mock_parse.side_effect = [rv1, rv2, rv3, rv4]
+        self.assertTrue(
+            self.xml1.equal(
+                xpath="/aris/partition/state_up", value="up", hard=False
+            )
+        )
+        self.assertTrue(
+            self.xml1.equal(
+                xpath="/aris/partition/state_down", value="up", hard=False
+            )
+        )
+        self.assertTrue(
+            self.xml1.equal(xpath="/mock/path", value="test", hard=False)
+        )
+        self.assertFalse(
+            self.xml1.equal(xpath="/mock/path2", value="test", hard=False)
+        )
+        self.assertEqual(mock_parse.call_count, 4)
+        mock_parse.assert_has_calls([
+            call(xpath="/aris/partition/state_up"),
+            call(xpath="/aris/partition/state_down"),
+            call(xpath="/mock/path"),
+            call(xpath="/mock/path2")
+        ])

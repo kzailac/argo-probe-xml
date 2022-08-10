@@ -47,3 +47,16 @@ class XML:
 
         except XMLSyntaxError as e:
             raise XMLParseException(f"Unable to parse xml: {str(e)}")
+
+    def equal(self, xpath, value, hard=True):
+        node = self.parse(xpath=xpath)
+
+        if isinstance(node, list):
+            if hard:
+                return False not in [item == value for item in node]
+
+            else:
+                return True in [item == value for item in node]
+
+        else:
+            return node == value
