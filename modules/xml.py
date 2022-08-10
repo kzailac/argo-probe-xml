@@ -3,7 +3,7 @@ import math
 
 import requests
 from argo_probe_xml.exceptions import XMLParseException, RequestException, \
-    WarningException, CriticalException
+    WarningException, CriticalException, TechnicalException
 from lxml import etree
 from lxml.etree import XMLSyntaxError
 
@@ -66,83 +66,100 @@ class XML:
     def _validate_thresholds(self, xpath, threshold, warning=False):
         negate = False
         location = "outside"
-        if threshold.startswith("@"):
-            negate = True
-            location = "inside"
-            threshold = threshold.strip("@")
+        analysis = "critical"
 
-        if ":" not in threshold:
-            lower = 0
-            upper = float(threshold)
-            rng = f"[0, {upper}]"
+        if warning:
+            analysis = "warning"
 
-        else:
-            if threshold.startswith(":"):
-                lower = -math.inf
-                upper = float(threshold.strip(":"))
-                rng = f"[-Inf, {upper}]"
+        try:
+            if threshold.startswith("@"):
+                negate = True
+                location = "inside"
+                threshold = threshold.strip("@")
 
-            elif threshold.endswith(":"):
-                lower = float(threshold.strip(":"))
-                upper = math.inf
-                rng = f"[{lower}, Inf]"
+            if ":" not in threshold:
+                lower = 0
+                upper = float(threshold)
+                rng = f"[0, {upper}]"
 
             else:
-                limits = threshold.split(":")
-                lower = float(limits[0].strip())
-                upper = float(limits[1].strip())
-                rng = f"[{lower}, {upper}]"
+                if threshold.startswith(":"):
+                    lower = -math.inf
+                    upper = float(threshold.strip(":"))
+                    rng = f"[-Inf, {upper}]"
+
+                elif threshold.endswith(":"):
+                    lower = float(threshold.strip(":"))
+                    upper = math.inf
+                    rng = f"[{lower}, Inf]"
+
+                else:
+                    limits = threshold.split(":")
+                    lower = float(limits[0].strip())
+                    upper = float(limits[1].strip())
+                    rng = f"[{lower}, {upper}]"
+
+        except ValueError:
+            raise TechnicalException(f"Invalid format of {analysis} threshold")
 
         node = self.parse(xpath=xpath)
 
-        if isinstance(node, list):
-            if negate:
-                validation = [
-                    not lower <= float(item) <= upper for item in node
-                ]
-
-            else:
-                validation = [lower <= float(item) <= upper for item in node]
-
-            if False in validation:
-                indices = [str(i) for i, x in enumerate(validation) if not x]
-                path_elements = xpath.split("/")
-                if len(indices) > 1:
-                    name = f"{path_elements[-2].capitalize()}s"
-                    node_name = path_elements[-1]
+        try:
+            if isinstance(node, list):
+                if negate:
+                    validation = [
+                        not lower <= float(item) <= upper for item in node
+                    ]
 
                 else:
-                    name = f"{path_elements[-2].capitalize()}"
-                    node_name = path_elements[-1]
+                    validation = [
+                        lower <= float(item) <= upper for item in node
+                    ]
 
-                exception_msg = f"{name} {', '.join(indices)} {node_name} " \
-                                f"{location} range {rng}"
-                if warning:
-                    raise WarningException(exception_msg)
+                if False in validation:
+                    indices = [
+                        str(i) for i, x in enumerate(validation) if not x
+                    ]
+                    path_elements = xpath.split("/")
+                    if len(indices) > 1:
+                        name = f"{path_elements[-2].capitalize()}s"
+                        node_name = path_elements[-1]
 
-                else:
-                    raise CriticalException(exception_msg)
+                    else:
+                        name = f"{path_elements[-2].capitalize()}"
+                        node_name = path_elements[-1]
 
-            else:
-                return "OK"
+                    exception_msg = f"{name} {', '.join(indices)} " \
+                                    f"{node_name} {location} range {rng}"
+                    if warning:
+                        raise WarningException(exception_msg)
 
-        else:
-            if negate:
-                validation = not lower <= float(node) <= upper
-
-            else:
-                validation = lower <= float(node) <= upper
-
-            if validation:
-                return "OK"
-
-            else:
-                exception_msg = f"Value {location} range {rng}"
-                if warning:
-                    raise WarningException(exception_msg)
+                    else:
+                        raise CriticalException(exception_msg)
 
                 else:
-                    raise CriticalException(exception_msg)
+                    return "OK"
+
+            else:
+                if negate:
+                    validation = not lower <= float(node) <= upper
+
+                else:
+                    validation = lower <= float(node) <= upper
+
+                if validation:
+                    return "OK"
+
+                else:
+                    exception_msg = f"Value {location} range {rng}"
+                    if warning:
+                        raise WarningException(exception_msg)
+
+                    else:
+                        raise CriticalException(exception_msg)
+
+        except ValueError:
+            raise TechnicalException("Node values are not numbers")
 
     def warning(self, xpath, threshold):
         return self._validate_thresholds(

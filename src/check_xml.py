@@ -3,7 +3,7 @@ import argparse
 import sys
 
 from argo_probe_xml.exceptions import XMLParseException, WarningException, \
-    CriticalException
+    CriticalException, TechnicalException
 from argo_probe_xml.nagios import Nagios
 from argo_probe_xml.xml import XML
 
@@ -98,14 +98,11 @@ def main():
                     f"Node with XPath '{args.xpath}' found but not defined"
                 )
 
-    except XMLParseException as e:
+    except (XMLParseException, CriticalException, TechnicalException) as e:
         nagios.critical(str(e))
 
     except WarningException as e:
         nagios.warning(str(e))
-
-    except CriticalException as e:
-        nagios.critical(str(e))
 
     print(nagios.get_msg())
     sys.exit(nagios.get_code())

@@ -3,7 +3,7 @@ from unittest.mock import patch, call
 
 import requests.exceptions
 from argo_probe_xml.exceptions import XMLParseException, RequestException, \
-    WarningException, CriticalException
+    WarningException, CriticalException, TechnicalException
 from argo_probe_xml.xml import XML
 
 xml1 = b"<aris>" \
@@ -332,6 +332,50 @@ class XMLParseTests(unittest.TestCase):
         )
 
     @patch("argo_probe_xml.xml.XML.parse")
+    def test_warning_threshold_with_wrong_defined_threshold(self, mock_parse):
+        rv1 = [5, 4, 59, 15, 0, 0, 3]
+        rv2 = 60
+        mock_parse.side_effect = [rv1, rv2]
+
+        with self.assertRaises(TechnicalException) as context1:
+            self.xml1.warning(
+                xpath="/aris/partition/running_jobs", threshold="x50"
+            )
+
+        with self.assertRaises(TechnicalException) as context2:
+            self.xml1.warning(xpath="/mock/path", threshold="5@0:")
+
+        self.assertEqual(
+            context1.exception.__str__(), "Invalid format of warning threshold"
+        )
+
+        self.assertEqual(
+            context2.exception.__str__(), "Invalid format of warning threshold"
+        )
+
+    @patch("argo_probe_xml.xml.XML.parse")
+    def test_warning_threshold_with_nan_values(self, mock_parse):
+        rv1 = ["test1", "test2", "test", "test", "test3", "test1", "test2"]
+        rv2 = "something"
+        mock_parse.side_effect = [rv1, rv2]
+
+        with self.assertRaises(TechnicalException) as context1:
+            self.xml1.warning(
+                xpath="/aris/partition/running_jobs", threshold="50"
+            )
+
+        with self.assertRaises(TechnicalException) as context2:
+            self.xml1.warning(xpath="/mock/path", threshold="50:")
+
+        self.assertEqual(
+            context1.exception.__str__(), "Node values are not numbers"
+        )
+
+        self.assertEqual(
+            context2.exception.__str__(), "Node values are not numbers"
+        )
+
+    @patch("argo_probe_xml.xml.XML.parse")
     def test_critical_threshold(self, mock_parse):
         rv1 = [5, 4, 59, 15, 0, 0, 3]
         rv2 = 60
@@ -397,4 +441,48 @@ class XMLParseTests(unittest.TestCase):
 
         self.assertEqual(
             context4.exception.__str__(), "Value outside range [10.0, 50.0]"
+        )
+
+    @patch("argo_probe_xml.xml.XML.parse")
+    def test_critical_threshold_with_wrong_defined_threshold(self, mock_parse):
+        rv1 = [5, 4, 59, 15, 0, 0, 3]
+        rv2 = 60
+        mock_parse.side_effect = [rv1, rv2]
+
+        with self.assertRaises(TechnicalException) as context1:
+            self.xml1.critical(
+                xpath="/aris/partition/running_jobs", threshold="x50"
+            )
+
+        with self.assertRaises(TechnicalException) as context2:
+            self.xml1.critical(xpath="/mock/path", threshold="5@0:")
+
+        self.assertEqual(
+            context1.exception.__str__(), "Invalid format of critical threshold"
+        )
+
+        self.assertEqual(
+            context2.exception.__str__(), "Invalid format of critical threshold"
+        )
+
+    @patch("argo_probe_xml.xml.XML.parse")
+    def test_critical_threshold_with_nan_values(self, mock_parse):
+        rv1 = ["test1", "test2", "test", "test", "test3", "test1", "test2"]
+        rv2 = "something"
+        mock_parse.side_effect = [rv1, rv2]
+
+        with self.assertRaises(TechnicalException) as context1:
+            self.xml1.critical(
+                xpath="/aris/partition/running_jobs", threshold="50"
+            )
+
+        with self.assertRaises(TechnicalException) as context2:
+            self.xml1.critical(xpath="/mock/path", threshold="50:")
+
+        self.assertEqual(
+            context1.exception.__str__(), "Node values are not numbers"
+        )
+
+        self.assertEqual(
+            context2.exception.__str__(), "Node values are not numbers"
         )

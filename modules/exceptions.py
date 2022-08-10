@@ -21,3 +21,8 @@ class WarningException(XMLException):
 class CriticalException(XMLException):
     def __str__(self):
         return str(self.msg)
+
+
+class TechnicalException(XMLException):
+    def __str__(self):
+        return str(self.msg)
