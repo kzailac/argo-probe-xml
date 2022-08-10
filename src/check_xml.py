@@ -28,13 +28,8 @@ def main():
     )
     optional.add_argument(
         "--ok",  dest="ok", type=str,
-        help="OK value of the node with given XPath"
-    )
-    optional.add_argument(
-        "--hard", action="store_true", dest="hard",
-        help="if requested node is a list, all the elements will have to be "
-             "equal to the given value to return OK; by default it is enough "
-             "to have one element equal to the given value to return OK"
+        help="value to result in OK status; each other value will result in "
+             "CRITICAL"
     )
     optional.add_argument(
         "-h", "--help", action="help", default=argparse.SUPPRESS,
@@ -48,16 +43,12 @@ def main():
 
     try:
         if args.ok:
-            if xml.equal(xpath=args.xpath, value=args.ok, hard=args.hard):
-                if args.hard:
-                    nagios.ok(f"All the node(s) values equal to '{args.ok}'")
-
-                else:
-                    nagios.ok(f"There are node(s) values equal to '{args.ok}'")
+            if xml.equal(xpath=args.xpath, value=args.ok):
+                nagios.ok(f"All the node(s) values equal to '{args.ok}'")
 
             else:
-                if args.hard:
-                    nagios.critical(
+                if xml.equal(xpath=args.xpath, value=args.ok, hard=False):
+                    nagios.warning(
                         f"Not all node(s) values equal to '{args.ok}'"
                     )
 

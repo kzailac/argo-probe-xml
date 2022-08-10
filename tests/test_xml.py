@@ -2,7 +2,8 @@ import unittest
 from unittest.mock import patch, call
 
 import requests.exceptions
-from argo_probe_xml.exceptions import XMLParseException, RequestException
+from argo_probe_xml.exceptions import XMLParseException, RequestException, \
+    WarningException, CriticalException
 from argo_probe_xml.xml import XML
 
 xml1 = b"<aris>" \
