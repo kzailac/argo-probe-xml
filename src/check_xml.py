@@ -113,17 +113,6 @@ def main():
             if xml.equal(xpath=args.xpath, value=args.ok):
                 nagios.ok(f"All the node(s) values equal to '{args.ok}'")
 
-            else:
-                if xml.equal(xpath=args.xpath, value=args.ok, hard=False):
-                    nagios.warning(
-                        f"Not all node(s) values equal to '{args.ok}'"
-                    )
-
-                else:
-                    nagios.critical(
-                        f"None of the node(s) values are equal to '{args.ok}'"
-                    )
-
         else:
             node = xml.parse(xpath=args.xpath)
 

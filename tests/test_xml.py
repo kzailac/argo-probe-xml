@@ -208,58 +208,54 @@ class XMLParseTests(unittest.TestCase):
         self.assertRaises(CriticalException, self.xml1._get)
 
     @patch("argo_probe_xml.xml.XML.parse")
-    def test_hard_equal(self, mock_parse):
+    def test_equal_ok(self, mock_parse):
         rv1 = ["up", "up", "up", "up"]
-        rv2 = ["up", "down", "up", "up"]
-        rv3 = "test"
-        rv4 = "test4"
-        mock_parse.side_effect = [rv1, rv2, rv3, rv4]
+        rv2 = "test"
+        mock_parse.side_effect = [rv1, rv2]
         self.assertTrue(
             self.xml1.equal(xpath="/aris/partition/state_up", value="up")
         )
-        self.assertFalse(
-            self.xml1.equal(xpath="/aris/partition/state_down", value="up")
-        )
         self.assertTrue(self.xml1.equal(xpath="/mock/path", value="test"))
-        self.assertFalse(self.xml1.equal(xpath="/mock/path2", value="test"))
-        self.assertEqual(mock_parse.call_count, 4)
+        self.assertEqual(mock_parse.call_count, 2)
         mock_parse.assert_has_calls([
             call(xpath="/aris/partition/state_up"),
-            call(xpath="/aris/partition/state_down"),
             call(xpath="/mock/path"),
-            call(xpath="/mock/path2")
         ])
 
     @patch("argo_probe_xml.xml.XML.parse")
-    def test_soft_equal(self, mock_parse):
+    def test_not_equal(self, mock_parse):
         rv1 = ["up", "up", "up", "up"]
         rv2 = ["up", "down", "up", "up"]
         rv3 = "test"
-        rv4 = "test4"
-        mock_parse.side_effect = [rv1, rv2, rv3, rv4]
-        self.assertTrue(
-            self.xml1.equal(
-                xpath="/aris/partition/state_up", value="up", hard=False
-            )
-        )
-        self.assertTrue(
-            self.xml1.equal(
-                xpath="/aris/partition/state_down", value="up", hard=False
-            )
-        )
-        self.assertTrue(
-            self.xml1.equal(xpath="/mock/path", value="test", hard=False)
-        )
-        self.assertFalse(
-            self.xml1.equal(xpath="/mock/path2", value="test", hard=False)
-        )
-        self.assertEqual(mock_parse.call_count, 4)
+        mock_parse.side_effect = [rv1, rv2, rv3]
+
+        with self.assertRaises(CriticalException) as context1:
+            self.xml1.equal(xpath="/aris/partition/state_up", value="yes")
+
+        with self.assertRaises(WarningException) as context2:
+            self.xml1.equal(xpath="/aris/partition/state_down", value="up")
+
+        with self.assertRaises(CriticalException) as context3:
+            self.xml1.equal(xpath="/mock/path", value="something")
+
+        self.assertEqual(mock_parse.call_count, 3)
         mock_parse.assert_has_calls([
             call(xpath="/aris/partition/state_up"),
             call(xpath="/aris/partition/state_down"),
-            call(xpath="/mock/path"),
-            call(xpath="/mock/path2")
+            call(xpath="/mock/path")
         ])
+
+        self.assertEqual(
+            context1.exception.__str__(),
+            "None of the nodes' values equal to 'yes'"
+        )
+        self.assertEqual(
+            context2.exception.__str__(),
+            "Not all nodes' values equal to 'up'"
+        )
+        self.assertEqual(
+            context3.exception.__str__(), "Node value not equal to 'something'"
+        )
 
     @patch("argo_probe_xml.xml.XML.parse")
     def test_warning_threshold(self, mock_parse):
@@ -487,7 +483,7 @@ class XMLParseTests(unittest.TestCase):
 
     @patch("argo_probe_xml.xml.get_date_now")
     @patch("argo_probe_xml.xml.XML.parse")
-    def test_check_age_hard(self, mock_parse, mock_datetime):
+    def test_check_age_ok(self, mock_parse, mock_datetime):
         rv1 = ["1660199401", "1660198775"]
         rv2 = "2022-08-11 08:19:34"
         mock_parse.side_effect = [rv1, rv2]

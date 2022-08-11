@@ -58,14 +58,30 @@ class XML:
         node = self.parse(xpath=xpath)
 
         if isinstance(node, list):
-            if hard:
-                return False not in [item == value for item in node]
+            equal = [item == value for item in node]
+
+            if False not in equal:
+                return True
 
             else:
-                return True in [item == value for item in node]
+                if True in equal:
+                    raise WarningException(
+                        f"Not all nodes' values equal to '{value}'"
+                    )
+
+                else:
+                    raise CriticalException(
+                        f"None of the nodes' values equal to '{value}'"
+                    )
 
         else:
-            return node == value
+            equal = node == value
+
+            if equal:
+                return True
+
+            else:
+                raise CriticalException(f"Node value not equal to '{value}'")
 
     def _validate_thresholds(self, xpath, threshold, warning=False):
         negate = False
