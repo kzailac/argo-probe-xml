@@ -1,3 +1,4 @@
+import datetime
 import unittest
 from unittest.mock import patch, call
 
@@ -486,3 +487,62 @@ class XMLParseTests(unittest.TestCase):
         self.assertEqual(
             context2.exception.__str__(), "Node values are not numbers"
         )
+
+    @patch("argo_probe_xml.xml.get_date_now")
+    @patch("argo_probe_xml.xml.XML.parse")
+    def test_check_age_hard(self, mock_parse, mock_datetime):
+        rv1 = ["1660199401", "1660198775"]
+        rv2 = "2022-08-11 08:19:34"
+        mock_parse.side_effect = [rv1, rv2]
+        mock_datetime.return_value = datetime.datetime(2022, 8, 11, 9, 0, 0)
+        self.assertTrue(
+            self.xml1.check_if_younger(
+                xpath="/aris/lastUpdate", age=3, time_format="UNIX"
+            )
+        )
+        self.assertTrue(
+            self.xml1.check_if_younger(
+                xpath="/mock/path", age=1, time_format="%Y-%m-%d %H:%M:%S"
+            )
+        )
+        self.assertEqual(mock_parse.call_count, 2)
+        mock_parse.assert_has_calls([
+            call(xpath="/aris/lastUpdate"), call(xpath="/mock/path")
+        ], any_order=True)
+
+    @patch("argo_probe_xml.xml.get_date_now")
+    @patch("argo_probe_xml.xml.XML.parse")
+    def test_check_age_older(self, mock_parse, mock_datetime):
+        rv1 = ["1660199401", "1660198775"]
+        rv2 = "2022-08-11 08:19:34"
+        mock_parse.side_effect = [rv1, rv1, rv2]
+        mock_datetime.return_value = datetime.datetime(2022, 8, 12, 9, 30, 0)
+        with self.assertRaises(WarningException) as context1:
+            self.xml1.check_if_younger(
+                xpath="/aris/lastUpdate", age=3, time_format="UNIX"
+            )
+
+        with self.assertRaises(CriticalException) as context2:
+            self.xml1.check_if_younger(
+                xpath="/aris/lastUpdate", age=2, time_format="UNIX"
+            )
+
+        with self.assertRaises(CriticalException) as context3:
+            self.xml1.check_if_younger(
+                xpath="/mock/path", age=1, time_format="%Y-%m-%d %H:%M:%S"
+            )
+
+        self.assertEqual(mock_parse.call_count, 3)
+        mock_parse.assert_has_calls([
+            call(xpath="/aris/lastUpdate"), call(xpath="/mock/path")
+        ], any_order=True)
+
+        self.assertEqual(
+            context1.exception.__str__(),
+            "Some node(s) values are older than 3 hr"
+        )
+        self.assertEqual(
+            context2.exception.__str__(),
+            "All node(s) values are older than 2 hr"
+        )
+        self.assertEqual(context3.exception.__str__(), "Value older than 1 hr")

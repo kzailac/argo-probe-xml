@@ -1,3 +1,4 @@
+import datetime
 import io
 import math
 
@@ -6,6 +7,10 @@ from argo_probe_xml.exceptions import XMLParseException, RequestException, \
     WarningException, CriticalException, TechnicalException
 from lxml import etree
 from lxml.etree import XMLSyntaxError
+
+
+def get_date_now():
+    return datetime.datetime.utcnow()
 
 
 class XML:
@@ -168,3 +173,43 @@ class XML:
 
     def critical(self, xpath, threshold):
         return self._validate_thresholds(xpath=xpath, threshold=threshold)
+
+    def check_if_younger(self, xpath, age, time_format):
+        def calculate_timedelta(item):
+            now = get_date_now()
+
+            if time_format == "UNIX":
+                dt = now - datetime.datetime.utcfromtimestamp(int(item))
+
+            else:
+                dt = now - datetime.datetime.strptime(item, time_format)
+
+            return dt.seconds / 3600.
+
+        node = self.parse(xpath=xpath)
+
+        if isinstance(node, list):
+            younger = [calculate_timedelta(item) < age for item in node]
+
+            if False not in younger:
+                return True
+
+            else:
+                if True in younger:
+                    raise WarningException(
+                        f"Some node(s) values are older than {age} hr"
+                    )
+
+                else:
+                    raise CriticalException(
+                        f"All node(s) values are older than {age} hr"
+                    )
+
+        else:
+            younger = calculate_timedelta(node) < age
+
+            if younger:
+                return True
+
+            else:
+                raise CriticalException(f"Value older than {age} hr")

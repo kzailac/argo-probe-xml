@@ -20,8 +20,8 @@ notes:
 
 USAGE = """
   Probe that checks the value of elements in given XML using XPath
-    -u URL -t TIMEOUT -x XPATH [--ok OK | [[-w WARNING] [-c CRITICAL]]] [-h]
-"""
+    -u URL -t TIMEOUT -x XPATH [--ok OK | [[-w WARNING] [-c CRITICAL]]
+""".rstrip("\n") + " | [--age AGE --time-format TIME_FORMAT]] [-h]"
 
 
 def main():
@@ -64,14 +64,32 @@ def main():
              "must not be used with --ok"
     )
     optional.add_argument(
+        "--age", type=float, dest="age",
+        help="Age (in hours); the probe returns CRITICAL status if the value "
+             "is older than the given value"
+
+    )
+    optional.add_argument(
+        "--time-format", type=str, dest="time_format",
+        help="Time format of the inspected time field; must be used with --age "
+             "argument; should be set to UNIX if the format is UNIX timestamp"
+    )
+    optional.add_argument(
         "-h", "--help", action="help", default=argparse.SUPPRESS,
         help="Show this help message and exit"
     )
 
     args = parser.parse_args()
+    var_args = vars(args)
 
-    if args.ok and (args.warning or args.critical):
-        parser.error("Arguments '--ok' and '-w' | '-c' are mutually exclusive")
+    if (args.ok and (args.warning or args.critical or args.age)) or \
+            (args.ok and args.age) or \
+            ((args.warning or args.critical) and args.age):
+        parser.error("Arguments --ok [-w | -c] --age are mutually exclusive")
+        sys.exit(2)
+
+    if var_args["age"] and var_args["time_format"] is None:
+        parser.error("Argument --time-format is mandatory with --age argument")
         sys.exit(2)
 
     nagios = Nagios()
@@ -85,6 +103,12 @@ def main():
 
             if args.warning:
                 xml.warning(xpath=args.xpath, threshold=args.warning)
+
+        elif args.age:
+            if xml.check_if_younger(
+                    xpath=args.xpath, age=args.age, time_format=args.time_format
+            ):
+                nagios.ok(f"Node(s) time value younger than {args.age}")
 
         elif args.ok:
             if xml.equal(xpath=args.xpath, value=args.ok):
