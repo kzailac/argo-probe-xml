@@ -3,8 +3,7 @@ import io
 import math
 
 import requests
-from argo_probe_xml.exceptions import XMLParseException, RequestException, \
-    WarningException, CriticalException, TechnicalException
+from argo_probe_xml.exceptions import WarningException, CriticalException
 from lxml import etree
 from lxml.etree import XMLSyntaxError
 
@@ -30,7 +29,7 @@ class XML:
             requests.exceptions.Timeout,
             requests.exceptions.TooManyRedirects
         ) as e:
-            raise RequestException(str(e))
+            raise CriticalException(str(e))
 
         else:
             return response.content
@@ -42,7 +41,7 @@ class XML:
             elements = tree.xpath(xpath)
 
             if len(elements) == 0:
-                raise XMLParseException(
+                raise CriticalException(
                     f"Unable to find element with XPath {xpath}"
                 )
 
@@ -53,7 +52,7 @@ class XML:
                 return [item.text for item in elements]
 
         except XMLSyntaxError as e:
-            raise XMLParseException(f"Unable to parse xml: {str(e)}")
+            raise CriticalException(f"Unable to parse xml: {str(e)}")
 
     def equal(self, xpath, value, hard=True):
         node = self.parse(xpath=xpath)
@@ -105,7 +104,7 @@ class XML:
                     rng = f"[{lower}, {upper}]"
 
         except ValueError:
-            raise TechnicalException(f"Invalid format of {analysis} threshold")
+            raise CriticalException(f"Invalid format of {analysis} threshold")
 
         node = self.parse(xpath=xpath)
 
@@ -164,7 +163,7 @@ class XML:
                         raise CriticalException(exception_msg)
 
         except ValueError:
-            raise TechnicalException("Node values are not numbers")
+            raise CriticalException("Node values are not numbers")
 
     def warning(self, xpath, threshold):
         return self._validate_thresholds(

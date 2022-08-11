@@ -3,8 +3,7 @@ import unittest
 from unittest.mock import patch, call
 
 import requests.exceptions
-from argo_probe_xml.exceptions import XMLParseException, RequestException, \
-    WarningException, CriticalException, TechnicalException
+from argo_probe_xml.exceptions import WarningException, CriticalException
 from argo_probe_xml.xml import XML
 
 xml1 = b"<aris>" \
@@ -175,7 +174,7 @@ class XMLParseTests(unittest.TestCase):
     @patch("argo_probe_xml.xml.XML._get")
     def test_parse_if_missing_element(self, mock_get):
         mock_get.return_value = xml1
-        with self.assertRaises(XMLParseException) as context:
+        with self.assertRaises(CriticalException) as context:
             self.xml1.parse("/aris/partition/nonexisting")
 
         self.assertEqual(
@@ -187,7 +186,7 @@ class XMLParseTests(unittest.TestCase):
     def test_parse_if_wrong_format(self, mock_get):
         mock_get.return_value = xml3
         xml = XML("https://mock3.url.com")
-        with self.assertRaises(XMLParseException) as context:
+        with self.assertRaises(CriticalException) as context:
             xml.parse("bla")
 
         self.assertEqual(
@@ -206,9 +205,7 @@ class XMLParseTests(unittest.TestCase):
     @patch("requests.get")
     def test_get_data_with_exception(self, mock_get):
         mock_get.side_effect = mock_response_500
-        self.assertRaises(
-            RequestException, self.xml1._get
-        )
+        self.assertRaises(CriticalException, self.xml1._get)
 
     @patch("argo_probe_xml.xml.XML.parse")
     def test_hard_equal(self, mock_parse):
@@ -338,12 +335,12 @@ class XMLParseTests(unittest.TestCase):
         rv2 = 60
         mock_parse.side_effect = [rv1, rv2]
 
-        with self.assertRaises(TechnicalException) as context1:
+        with self.assertRaises(CriticalException) as context1:
             self.xml1.warning(
                 xpath="/aris/partition/running_jobs", threshold="x50"
             )
 
-        with self.assertRaises(TechnicalException) as context2:
+        with self.assertRaises(CriticalException) as context2:
             self.xml1.warning(xpath="/mock/path", threshold="5@0:")
 
         self.assertEqual(
@@ -360,12 +357,12 @@ class XMLParseTests(unittest.TestCase):
         rv2 = "something"
         mock_parse.side_effect = [rv1, rv2]
 
-        with self.assertRaises(TechnicalException) as context1:
+        with self.assertRaises(CriticalException) as context1:
             self.xml1.warning(
                 xpath="/aris/partition/running_jobs", threshold="50"
             )
 
-        with self.assertRaises(TechnicalException) as context2:
+        with self.assertRaises(CriticalException) as context2:
             self.xml1.warning(xpath="/mock/path", threshold="50:")
 
         self.assertEqual(
@@ -450,12 +447,12 @@ class XMLParseTests(unittest.TestCase):
         rv2 = 60
         mock_parse.side_effect = [rv1, rv2]
 
-        with self.assertRaises(TechnicalException) as context1:
+        with self.assertRaises(CriticalException) as context1:
             self.xml1.critical(
                 xpath="/aris/partition/running_jobs", threshold="x50"
             )
 
-        with self.assertRaises(TechnicalException) as context2:
+        with self.assertRaises(CriticalException) as context2:
             self.xml1.critical(xpath="/mock/path", threshold="5@0:")
 
         self.assertEqual(
@@ -472,12 +469,12 @@ class XMLParseTests(unittest.TestCase):
         rv2 = "something"
         mock_parse.side_effect = [rv1, rv2]
 
-        with self.assertRaises(TechnicalException) as context1:
+        with self.assertRaises(CriticalException) as context1:
             self.xml1.critical(
                 xpath="/aris/partition/running_jobs", threshold="50"
             )
 
-        with self.assertRaises(TechnicalException) as context2:
+        with self.assertRaises(CriticalException) as context2:
             self.xml1.critical(xpath="/mock/path", threshold="50:")
 
         self.assertEqual(
