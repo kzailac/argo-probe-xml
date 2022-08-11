@@ -1,27 +1,46 @@
 #!/usr/bin/python3
 import argparse
 import sys
+import textwrap
 
 from argo_probe_xml.exceptions import XMLParseException, WarningException, \
     CriticalException, TechnicalException
 from argo_probe_xml.nagios import Nagios
 from argo_probe_xml.xml import XML
 
+NOTE = """
+notes:
+  The format for the warning and critical range is as follows:
+  10 - raises alert when value is outside of [0, 10] range
+  10: - raises alert when value is outside of [10, Inf] range
+  10:20 - raises alert when value is outside of [10, 20] range
+""" + "  @10:20 - negation of the above, i.e. raises alert when value is " \
+      "inside of [10, 20] range"
+
+
+USAGE = """
+  Probe that checks the value of elements in given XML using XPath
+    -u URL -t TIMEOUT -x XPATH [--ok OK | [[-w WARNING] [-c CRITICAL]]] [-h]
+"""
+
 
 def main():
     parser = argparse.ArgumentParser(
-        "Probe that checks the value of elements in given xml using XPath",
-        add_help=False
+        add_help=False,
+        usage=USAGE,
+        formatter_class=argparse.RawTextHelpFormatter,
+        epilog=textwrap.dedent(NOTE)
     )
     required = parser.add_argument_group("required arguments")
     optional = parser.add_argument_group("optional arguments")
 
     required.add_argument(
-        "-u", "--url", dest="url", type=str, required=True, help="url with XML"
+        "-u", "--url", dest="url", type=str, required=True,
+        help="The URL that holds the XML we wish to test"
     )
     required.add_argument(
         "-t", "--timeout", dest="timeout", type=float, required=True,
-        default=30, help="timeout"
+        default=30, help="Seconds before the connection times out (default 30)"
     )
     required.add_argument(
         "-x", "--xpath", dest="xpath", type=str, required=True,
@@ -29,26 +48,20 @@ def main():
     )
     optional.add_argument(
         "--ok",  dest="ok", type=str,
-        help="value to result in OK status; each other value will result in "
-             "CRITICAL"
+        help="Value to result in OK status; each other value will result in "
+             "CRITICAL; must not be used with -w or -c"
     )
     optional.add_argument(
         "-w", "--warning", type=str, dest="warning",
-        help="value range to result in WARNING status; e.g. if set -w 10, "
-             "WARNING will be returned if the tested value is outside of "
-             "[0, 10] range; if set -w 10:, WARNING will be returned for "
-             "values less than 10; if set -w 10:20, WARNING will be returned "
-             "for values outside of [10, 20] range; if set -w @10:20, warning "
-             "will be returned for values inside [10, 20] range"
+        help="Warning range; if the inspected value is not in the given range, "
+             "the probe will result in WARNING status; "
+             "must not be used with --ok"
     )
     optional.add_argument(
         "-c", "--critical", type=str, dest="critical",
-        help="value range to result in CRITICAL status, e.g. if we set -c 10, "
-             "CRITICAL will be returned if the tested value is outside of "
-             "[0, 10] range; if set -c 10:, CRITICAL will be returned for "
-             "values less than 10; if set -c 10:20, CRITICAL will be returned "
-             "for values outside of [10, 20] range; if set -c @10:20, CRITICAL "
-             "will be returned for values inside [10, 20] range"
+        help="Critical range; if the inspected value is not in this range, "
+             "the probe will result in CRITICAL status; "
+             "must not be used with --ok"
     )
     optional.add_argument(
         "-h", "--help", action="help", default=argparse.SUPPRESS,
@@ -58,7 +71,8 @@ def main():
     args = parser.parse_args()
 
     if args.ok and (args.warning or args.critical):
-        parser.error("You cannot use --ok with -w or -c")
+        parser.error("Arguments '--ok' and '-w' | '-c' are mutually exclusive")
+        sys.exit(2)
 
     nagios = Nagios()
 
