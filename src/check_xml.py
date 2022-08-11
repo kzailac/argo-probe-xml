@@ -130,6 +130,9 @@ def main():
     except WarningException as e:
         nagios.warning(str(e))
 
+    except Exception as e:
+        nagios.unknown(str(e))
+
     print(nagios.get_msg())
     sys.exit(nagios.get_code())
 
