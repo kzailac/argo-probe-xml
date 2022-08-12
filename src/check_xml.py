@@ -146,11 +146,13 @@ def main():
                         age=float(age),
                         time_format=args.time_format
                 ):
-                    nagios.ok(f"Node(s) time value younger than {age}")
+                    nagios.ok(f"{xpath}: Node(s) time value younger than {age}")
 
             elif ok:
                 if xml.equal(xpath=xpath, value=ok):
-                    nagios.ok(f"All the node(s) values equal to '{ok}'")
+                    nagios.ok(
+                        f"{xpath}: All the node(s) values equal to '{ok}'"
+                    )
 
             else:
                 node = xml.parse(xpath=xpath)

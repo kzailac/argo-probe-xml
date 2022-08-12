@@ -54,7 +54,7 @@ class XML:
         except XMLSyntaxError as e:
             raise CriticalException(f"Unable to parse xml: {str(e)}")
 
-    def equal(self, xpath, value, hard=True):
+    def equal(self, xpath, value):
         node = self.parse(xpath=xpath)
 
         if isinstance(node, list):
@@ -66,12 +66,12 @@ class XML:
             else:
                 if True in equal:
                     raise WarningException(
-                        f"Not all nodes' values equal to '{value}'"
+                        f"{xpath}: Not all nodes' values equal to '{value}'"
                     )
 
                 else:
                     raise CriticalException(
-                        f"None of the nodes' values equal to '{value}'"
+                        f"{xpath}: None of the nodes' values equal to '{value}'"
                     )
 
         else:
@@ -81,7 +81,9 @@ class XML:
                 return True
 
             else:
-                raise CriticalException(f"Node value not equal to '{value}'")
+                raise CriticalException(
+                    f"{xpath}: Node value not equal to '{value}'"
+                )
 
     def _validate_thresholds(self, xpath, threshold, warning=False):
         negate = False
@@ -120,7 +122,9 @@ class XML:
                     rng = f"[{lower}, {upper}]"
 
         except ValueError:
-            raise CriticalException(f"Invalid format of {analysis} threshold")
+            raise CriticalException(
+                f"{xpath}: Invalid format of {analysis} threshold"
+            )
 
         node = self.parse(xpath=xpath)
 
@@ -142,15 +146,16 @@ class XML:
                     ]
                     path_elements = xpath.split("/")
                     if len(indices) > 1:
-                        name = f"{path_elements[-2].capitalize()}s"
-                        node_name = path_elements[-1]
+                        parent = f"{path_elements[-2].capitalize()}s"
+                        value = "values"
 
                     else:
-                        name = f"{path_elements[-2].capitalize()}"
-                        node_name = path_elements[-1]
+                        parent = f"{path_elements[-2].capitalize()}"
+                        value = "value"
 
-                    exception_msg = f"{name} {', '.join(indices)} " \
-                                    f"{node_name} {location} range {rng}"
+                    exception_msg = \
+                        f"{xpath}: {parent} {', '.join(indices)} {value} " \
+                        f"{location} range {rng}"
                     if warning:
                         raise WarningException(exception_msg)
 
@@ -171,7 +176,7 @@ class XML:
                     return "OK"
 
                 else:
-                    exception_msg = f"Value {location} range {rng}"
+                    exception_msg = f"{xpath}: Value {location} range {rng}"
                     if warning:
                         raise WarningException(exception_msg)
 
@@ -179,7 +184,7 @@ class XML:
                         raise CriticalException(exception_msg)
 
         except ValueError:
-            raise CriticalException("Node values are not numbers")
+            raise CriticalException(f"{xpath}: Node values are not numbers")
 
     def warning(self, xpath, threshold):
         return self._validate_thresholds(
@@ -212,12 +217,12 @@ class XML:
             else:
                 if True in younger:
                     raise WarningException(
-                        f"Some node(s) values are older than {age} hr"
+                        f"{xpath}: Some node(s) values are older than {age} hr"
                     )
 
                 else:
                     raise CriticalException(
-                        f"All node(s) values are older than {age} hr"
+                        f"{xpath}: All node(s) values are older than {age} hr"
                     )
 
         else:
@@ -227,4 +232,4 @@ class XML:
                 return True
 
             else:
-                raise CriticalException(f"Value older than {age} hr")
+                raise CriticalException(f"{xpath}: Value older than {age} hr")

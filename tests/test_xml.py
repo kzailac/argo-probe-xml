@@ -247,14 +247,15 @@ class XMLParseTests(unittest.TestCase):
 
         self.assertEqual(
             context1.exception.__str__(),
-            "None of the nodes' values equal to 'yes'"
+            "/aris/partition/state_up: None of the nodes' values equal to 'yes'"
         )
         self.assertEqual(
             context2.exception.__str__(),
-            "Not all nodes' values equal to 'up'"
+            "/aris/partition/state_down: Not all nodes' values equal to 'up'"
         )
         self.assertEqual(
-            context3.exception.__str__(), "Node value not equal to 'something'"
+            context3.exception.__str__(),
+            "/mock/path: Node value not equal to 'something'"
         )
 
     @patch("argo_probe_xml.xml.XML.parse")
@@ -308,21 +309,25 @@ class XMLParseTests(unittest.TestCase):
 
         self.assertEqual(
             context1.exception.__str__(),
-            "Partition 2 running_jobs outside range [0, 50.0]"
+            "/aris/partition/running_jobs: Partition 2 value outside "
+            "range [0, 50.0]"
         )
 
         self.assertEqual(
             context2.exception.__str__(),
-            "Partitions 0, 1, 3, 4, 5, 6 running_jobs outside range [50.0, Inf]"
+            "/aris/partition/running_jobs: Partitions 0, 1, 3, 4, 5, 6 "
+            "values outside range [50.0, Inf]"
         )
 
         self.assertEqual(
             context3.exception.__str__(),
-            "Partition 3 running_jobs inside range [10.0, 50.0]"
+            "/aris/partition/running_jobs: Partition 3 value inside "
+            "range [10.0, 50.0]"
         )
 
         self.assertEqual(
-            context4.exception.__str__(), "Value outside range [10.0, 50.0]"
+            context4.exception.__str__(),
+            "/mock/path: Value outside range [10.0, 50.0]"
         )
 
     @patch("argo_probe_xml.xml.XML.parse")
@@ -340,11 +345,13 @@ class XMLParseTests(unittest.TestCase):
             self.xml1.warning(xpath="/mock/path", threshold="5@0:")
 
         self.assertEqual(
-            context1.exception.__str__(), "Invalid format of warning threshold"
+            context1.exception.__str__(),
+            "/aris/partition/running_jobs: Invalid format of warning threshold"
         )
 
         self.assertEqual(
-            context2.exception.__str__(), "Invalid format of warning threshold"
+            context2.exception.__str__(),
+            "/mock/path: Invalid format of warning threshold"
         )
 
     @patch("argo_probe_xml.xml.XML.parse")
@@ -362,11 +369,13 @@ class XMLParseTests(unittest.TestCase):
             self.xml1.warning(xpath="/mock/path", threshold="50:")
 
         self.assertEqual(
-            context1.exception.__str__(), "Node values are not numbers"
+            context1.exception.__str__(),
+            "/aris/partition/running_jobs: Node values are not numbers"
         )
 
         self.assertEqual(
-            context2.exception.__str__(), "Node values are not numbers"
+            context2.exception.__str__(),
+            "/mock/path: Node values are not numbers"
         )
 
     @patch("argo_probe_xml.xml.XML.parse")
@@ -420,21 +429,25 @@ class XMLParseTests(unittest.TestCase):
 
         self.assertEqual(
             context1.exception.__str__(),
-            "Partition 2 running_jobs outside range [0, 50.0]"
+            "/aris/partition/running_jobs: "
+            "Partition 2 value outside range [0, 50.0]"
         )
 
         self.assertEqual(
             context2.exception.__str__(),
-            "Partitions 0, 1, 3, 4, 5, 6 running_jobs outside range [50.0, Inf]"
+            "/aris/partition/running_jobs: Partitions 0, 1, 3, 4, 5, 6 "
+            "values outside range [50.0, Inf]"
         )
 
         self.assertEqual(
             context3.exception.__str__(),
-            "Partition 3 running_jobs inside range [10.0, 50.0]"
+            "/aris/partition/running_jobs: "
+            "Partition 3 value inside range [10.0, 50.0]"
         )
 
         self.assertEqual(
-            context4.exception.__str__(), "Value outside range [10.0, 50.0]"
+            context4.exception.__str__(),
+            "/mock/path: Value outside range [10.0, 50.0]"
         )
 
     @patch("argo_probe_xml.xml.XML.parse")
@@ -452,11 +465,13 @@ class XMLParseTests(unittest.TestCase):
             self.xml1.critical(xpath="/mock/path", threshold="5@0:")
 
         self.assertEqual(
-            context1.exception.__str__(), "Invalid format of critical threshold"
+            context1.exception.__str__(),
+            "/aris/partition/running_jobs: Invalid format of critical threshold"
         )
 
         self.assertEqual(
-            context2.exception.__str__(), "Invalid format of critical threshold"
+            context2.exception.__str__(),
+            "/mock/path: Invalid format of critical threshold"
         )
 
     @patch("argo_probe_xml.xml.XML.parse")
@@ -474,11 +489,13 @@ class XMLParseTests(unittest.TestCase):
             self.xml1.critical(xpath="/mock/path", threshold="50:")
 
         self.assertEqual(
-            context1.exception.__str__(), "Node values are not numbers"
+            context1.exception.__str__(),
+            "/aris/partition/running_jobs: Node values are not numbers"
         )
 
         self.assertEqual(
-            context2.exception.__str__(), "Node values are not numbers"
+            context2.exception.__str__(),
+            "/mock/path: Node values are not numbers"
         )
 
     @patch("argo_probe_xml.xml.get_date_now")
@@ -532,10 +549,12 @@ class XMLParseTests(unittest.TestCase):
 
         self.assertEqual(
             context1.exception.__str__(),
-            "Some node(s) values are older than 3 hr"
+            "/aris/lastUpdate: Some node(s) values are older than 3 hr"
         )
         self.assertEqual(
             context2.exception.__str__(),
-            "All node(s) values are older than 2 hr"
+            "/aris/lastUpdate: All node(s) values are older than 2 hr"
         )
-        self.assertEqual(context3.exception.__str__(), "Value older than 1 hr")
+        self.assertEqual(
+            context3.exception.__str__(), "/mock/path: Value older than 1 hr"
+        )
