@@ -104,7 +104,7 @@ def main():
     var_args = vars(args)
     argcheck = Args(args=var_args)
 
-    if not argcheck.check_validity:
+    if not argcheck.check_validity():
         parser.error(
             "When testing for multiple XPaths, optional arguments must have "
             "'<node_name>:' prefix"
