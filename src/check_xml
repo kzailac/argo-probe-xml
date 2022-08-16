@@ -17,7 +17,21 @@ notes:
 """ + "  @10:20 - negation of the above, i.e. raises alert when value is " \
       "inside of [10, 20] range\n\n" \
       "  If there are multiple XPaths given, all the optional arguments must " \
-      "have prefix of the form '<node_name>:'"
+      "have prefix of the form '<node_name>:'\n\n" \
+      "examples:\n" \
+      "  Checking that XML document contains a node\n" \
+      "  /usr/libexec/argo/probes/xml/check_xml -u https://xml.argo.eu/ " \
+      "-t 30 -x /root/test/path\n\n" \
+      "  Checking that XML document contains multiple nodes\n" \
+      "  /usr/libexec/argo/probes/xml/check_xml -u https://xml.argo.eu/ " \
+      "-t 30 -x /root/test/path1 /root/test/path2\n\n" \
+      "  Checking a node's value\n" \
+      "  /usr/libexec/argo/probes/xml/check_xml -u https://xml.argo.eu/ " \
+      "-t 30 -x /root/test/path --ok is_ok\n\n" \
+      "  Checking multiple nodes' values\n" \
+      "  /usr/libexec/argo/probes/xml/check_xml -u https://xml.argo.eu/ " \
+      "-t 30 -x /root/test/path1 /root/test/path2 -w path1:10:20 " \
+      "-c path1:20:30 --age path2:3 --time-format %Y-%m-%d-%H:%M:%S"
 
 
 USAGE = """
@@ -41,7 +55,7 @@ def main():
 
     required.add_argument(
         "-u", "--url", dest="url", type=str, required=True,
-        help="The URL that holds the XML we wish to test"
+        help="The URL that of the XML document we wish to test"
     )
     required.add_argument(
         "-t", "--timeout", dest="timeout", type=float, required=True,
@@ -93,7 +107,8 @@ def main():
     optional.add_argument(
         "--time-format", type=str, dest="time_format",
         help="Time format of the inspected time field; must be used with --age "
-             "argument; should be set to UNIX if the format is UNIX timestamp"
+             "argument; should be set to UNIX if the format is UNIX timestamp "
+             "and the Python library datetime format otherwise"
     )
     optional.add_argument(
         "-h", "--help", action="help", default=argparse.SUPPRESS,
