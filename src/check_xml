@@ -1,0 +1,207 @@
+#!/usr/bin/python3
+import argparse
+import sys
+import textwrap
+
+from argo_probe_xml.arguments import Args
+from argo_probe_xml.exceptions import WarningException, CriticalException
+from argo_probe_xml.nagios import Nagios
+from argo_probe_xml.xml import XML
+
+NOTE = """
+notes:
+  The format for the warning and critical range is as follows:
+  10 - raises alert when value is outside of [0, 10] range
+  10: - raises alert when value is outside of [10, Inf] range
+  10:20 - raises alert when value is outside of [10, 20] range
+""" + "  @10:20 - negation of the above, i.e. raises alert when value is " \
+      "inside of [10, 20] range\n\n" \
+      "  If there are multiple XPaths given, all the optional arguments must " \
+      "have prefix of the form '<node_name>:'\n\n" \
+      "examples:\n" \
+      "  Checking that XML document contains a node\n" \
+      "  /usr/libexec/argo/probes/xml/check_xml -u https://xml.argo.eu/ " \
+      "-t 30 -x /root/test/path\n\n" \
+      "  Checking that XML document contains multiple nodes\n" \
+      "  /usr/libexec/argo/probes/xml/check_xml -u https://xml.argo.eu/ " \
+      "-t 30 -x /root/test/path1 /root/test/path2\n\n" \
+      "  Checking a node's value\n" \
+      "  /usr/libexec/argo/probes/xml/check_xml -u https://xml.argo.eu/ " \
+      "-t 30 -x /root/test/path --ok is_ok\n\n" \
+      "  Checking multiple nodes' values\n" \
+      "  /usr/libexec/argo/probes/xml/check_xml -u https://xml.argo.eu/ " \
+      "-t 30 -x /root/test/path1 /root/test/path2 -w path1:10:20 " \
+      "-c path1:20:30 --age path2:3 --time-format %Y-%m-%d-%H:%M:%S"
+
+
+USAGE = """
+  Probe that checks the value of elements in given XML using XPath
+    -u URL -t TIMEOUT -x XPATH [XPATH ... ] [--ok [OK [OK ...]] | 
+""".rstrip("\n") + \
+        "[[-w [WARNING [WARNING ...]] [-c [CRITICAL [CRITICAL ...]]] | " \
+        "[--age [AGE [AGE ...]] --time-format TIME_FORMAT]]] " \
+        "[-h]"
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        add_help=False,
+        usage=USAGE,
+        formatter_class=argparse.RawTextHelpFormatter,
+        epilog=textwrap.dedent(NOTE)
+    )
+    required = parser.add_argument_group("required arguments")
+    optional = parser.add_argument_group("optional arguments")
+
+    required.add_argument(
+        "-u", "--url", dest="url", type=str, required=True,
+        help="The URL that of the XML document we wish to test"
+    )
+    required.add_argument(
+        "-t", "--timeout", dest="timeout", type=float, required=True,
+        default=30, help="Seconds before the connection times out (default 30)"
+    )
+    required.add_argument(
+        "-x", "--xpath", dest="xpath", type=str, required=True, nargs="+",
+        help="Space separated list of XPaths of the required child node(s)"
+    )
+    optional.add_argument(
+        "--ok",  dest="ok", type=str, nargs="*",
+        help="Space separated list of value to result in OK status; "
+             "each element of the list corresponds to one XPath, and must start"
+             " with the prefix <node_name>: (can be left out if only one XPath "
+             "is being tested); "
+             "each other value will result in CRITICAL; "
+             "must not be used with -w or -c"
+    )
+    optional.add_argument(
+        "-w", "--warning", type=str, dest="warning", nargs="*",
+        help="Space separated list of warning ranges; "
+             "each element of the list corresponds to one XPath, and must start"
+             " with the prefix <node_name>: (can be left out if only one XPath "
+             "is being tested); "
+             "if the inspected value is not in the given range, "
+             "the probe will result in WARNING status; "
+             "must not be used with --ok"
+    )
+    optional.add_argument(
+        "-c", "--critical", type=str, dest="critical", nargs="*",
+        help="Space separated list of critical ranges; "
+             "each element of the list corresponds to one XPath, and must start"
+             " with the prefix <node_name>: (can be left out if only one XPath "
+             "is being tested); "
+             "if the inspected value is not in this range, "
+             "the probe will result in CRITICAL status; "
+             "must not be used with --ok"
+    )
+    optional.add_argument(
+        "--age", type=str, dest="age", nargs="*",
+        help="Space separated list of age (in hours); "
+             "each element of the list corresponds to one XPath, and must start"
+             " with the prefix <node_name>: (can be left out if only one XPath "
+             "is being tested); "
+             "the probe returns CRITICAL status if the value is older than the "
+             "given value"
+
+    )
+    optional.add_argument(
+        "--time-format", type=str, dest="time_format",
+        help="Time format of the inspected time field; must be used with --age "
+             "argument; should be set to UNIX if the format is UNIX timestamp "
+             "and the Python library datetime format otherwise"
+    )
+    optional.add_argument(
+        "-h", "--help", action="help", default=argparse.SUPPRESS,
+        help="Show this help message and exit"
+    )
+
+    args = parser.parse_args()
+    var_args = vars(args)
+    argcheck = Args(args=var_args)
+
+    if not argcheck.check_validity():
+        parser.error(
+            "When testing for multiple XPaths, optional arguments must have "
+            "'<node_name>:' prefix"
+        )
+        sys.exit(2)
+
+    if not argcheck.check_mutually_exclusive():
+        parser.error(
+            "Arguments --ok [-w | -c] --age are mutually exclusive for "
+            "each XPath"
+        )
+        sys.exit(2)
+
+    if var_args["age"] and var_args["time_format"] is None:
+        parser.error("Argument --time-format is mandatory with --age argument")
+        sys.exit(2)
+
+    nagios = Nagios()
+
+    xml = XML(url=args.url, timeout=args.timeout)
+
+    for xpath in args.xpath:
+        try:
+            name = xpath.split("/")[-1]
+            ok = argcheck.ok4node(name)
+            critical = argcheck.critical4node(name)
+            warning = argcheck.warning4node(name)
+            age = argcheck.age4node(name)
+            if critical or warning:
+                if critical:
+                    xml.critical(xpath=xpath, threshold=critical)
+
+            if warning:
+                xml.warning(xpath=xpath, threshold=warning)
+
+            elif age:
+                if xml.check_if_younger(
+                        xpath=xpath,
+                        age=float(age),
+                        time_format=args.time_format
+                ):
+                    nagios.ok(f"{xpath}: Node(s) time value younger than {age}")
+
+            elif ok:
+                if xml.equal(xpath=xpath, value=ok):
+                    nagios.ok(
+                        f"{xpath}: All the node(s) values equal to '{ok}'"
+                    )
+
+            else:
+                node = xml.parse(xpath=xpath)
+
+                if node:
+                    nagios.ok(f"Node with XPath '{xpath}' found")
+
+                else:
+                    nagios.warning(
+                        f"Node with XPath '{xpath}' found but not defined"
+                    )
+
+        except CriticalException as e:
+            nagios.critical(str(e))
+            continue
+
+        except WarningException as e:
+            nagios.warning(str(e))
+            continue
+
+        except Exception as e:
+            nagios.unknown(str(e))
+            continue
+
+    if len(args.xpath) > 1:
+        if nagios.get_code() == 0:
+            nagios.set_final_msg("All the checks pass")
+
+        else:
+            nagios.set_final_msg("Some checks do not pass")
+
+    print(nagios.get_msg())
+    sys.exit(nagios.get_code())
+
+
+if __name__ == "__main__":
+    main()
