@@ -172,6 +172,12 @@ class XMLParseTests(unittest.TestCase):
         )
 
     @patch("argo_probe_xml.xml.XML._get")
+    def test_parse_without_xpath(self, mock_get):
+        mock_get.side_effect = [xml1, xml2]
+        self.assertTrue(self.xml1.parse())
+        self.assertTrue(self.xml2.parse())
+
+    @patch("argo_probe_xml.xml.XML._get")
     def test_parse_if_missing_element(self, mock_get):
         mock_get.return_value = xml1
         with self.assertRaises(CriticalException) as context:
@@ -189,12 +195,16 @@ class XMLParseTests(unittest.TestCase):
         with self.assertRaises(CriticalException) as context:
             xml.parse("bla")
 
-        self.assertEqual(
-            context.exception.__str__(),
-            "Unable to parse xml: "
-            "Premature end of data in tag aris line 1, line 1, column 223 "
-            "(<string>, line 1)"
-        )
+        self.assertIn("Unable to parse xml", context.exception.__str__())
+
+    @patch("argo_probe_xml.xml.XML._get")
+    def test_parse_no_xpath_if_wrong_format(self, mock_get):
+        mock_get.return_value = xml3
+        xml = XML("https://mock3.url.com")
+        with self.assertRaises(CriticalException) as context:
+            xml.parse()
+
+        self.assertIn("Unable to parse xml: ", context.exception.__str__())
 
     @patch("requests.get")
     def test_get_data(self, mock_get):

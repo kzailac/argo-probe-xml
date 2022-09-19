@@ -19,6 +19,9 @@ notes:
       "  If there are multiple XPaths given, all the optional arguments must " \
       "have prefix of the form '<node_name>:'\n\n" \
       "examples:\n" \
+      "  Checking that XML document is valid\n" \
+      "  /usr/libexec/argo/probes/xml/check_xml -u https://xml.argo.eu/ " \
+      "-t 30\n\n" \
       "  Checking that XML document contains a node\n" \
       "  /usr/libexec/argo/probes/xml/check_xml -u https://xml.argo.eu/ " \
       "-t 30 -x /root/test/path\n\n" \
@@ -35,8 +38,8 @@ notes:
 
 
 USAGE = """
-  Probe that checks the value of elements in given XML using XPath
-    -u URL -t TIMEOUT -x XPATH [XPATH ... ] [--ok [OK [OK ...]] | 
+  Probe that checks the validity of XML response given the URL
+    -u URL -t TIMEOUT [-x XPATH [XPATH ... ]] [--ok [OK [OK ...]] | 
 """.rstrip("\n") + \
         "[[-w [WARNING [WARNING ...]] [-c [CRITICAL [CRITICAL ...]]] | " \
         "[--age [AGE [AGE ...]] --time-format TIME_FORMAT]]] " \
@@ -61,8 +64,8 @@ def main():
         "-t", "--timeout", dest="timeout", type=float, required=True,
         default=30, help="Seconds before the connection times out (default 30)"
     )
-    required.add_argument(
-        "-x", "--xpath", dest="xpath", type=str, required=True, nargs="+",
+    optional.add_argument(
+        "-x", "--xpath", dest="xpath", type=str, nargs="+",
         help="Space separated list of XPaths of the required child node(s)"
     )
     optional.add_argument(
@@ -119,14 +122,14 @@ def main():
     var_args = vars(args)
     argcheck = Args(args=var_args)
 
-    if not argcheck.check_validity():
+    if args.xpath and not argcheck.check_validity():
         parser.error(
             "When testing for multiple XPaths, optional arguments must have "
             "'<node_name>:' prefix"
         )
         sys.exit(2)
 
-    if not argcheck.check_mutually_exclusive():
+    if args.xpath and not argcheck.check_mutually_exclusive():
         parser.error(
             "Arguments --ok [-w | -c] --age are mutually exclusive for "
             "each XPath"
@@ -141,63 +144,81 @@ def main():
 
     xml = XML(url=args.url, timeout=args.timeout)
 
-    for xpath in args.xpath:
-        try:
-            name = xpath.split("/")[-1]
-            ok = argcheck.ok4node(name)
-            critical = argcheck.critical4node(name)
-            warning = argcheck.warning4node(name)
-            age = argcheck.age4node(name)
-            if critical or warning:
-                if critical:
-                    xml.critical(xpath=xpath, threshold=critical)
+    if args.xpath:
+        for xpath in args.xpath:
+            try:
+                name = xpath.split("/")[-1]
+                ok = argcheck.ok4node(name)
+                critical = argcheck.critical4node(name)
+                warning = argcheck.warning4node(name)
+                age = argcheck.age4node(name)
+                if critical or warning:
+                    if critical:
+                        xml.critical(xpath=xpath, threshold=critical)
 
-            if warning:
-                xml.warning(xpath=xpath, threshold=warning)
+                if warning:
+                    xml.warning(xpath=xpath, threshold=warning)
 
-            elif age:
-                if xml.check_if_younger(
-                        xpath=xpath,
-                        age=float(age),
-                        time_format=args.time_format
-                ):
-                    nagios.ok(f"{xpath}: Node(s) time value younger than {age}")
+                elif age:
+                    if xml.check_if_younger(
+                            xpath=xpath,
+                            age=float(age),
+                            time_format=args.time_format
+                    ):
+                        nagios.ok(
+                            f"{xpath}: Node(s) time value younger than {age}"
+                        )
 
-            elif ok:
-                if xml.equal(xpath=xpath, value=ok):
-                    nagios.ok(
-                        f"{xpath}: All the node(s) values equal to '{ok}'"
-                    )
-
-            else:
-                node = xml.parse(xpath=xpath)
-
-                if node:
-                    nagios.ok(f"Node with XPath '{xpath}' found")
+                elif ok:
+                    if xml.equal(xpath=xpath, value=ok):
+                        nagios.ok(
+                            f"{xpath}: All the node(s) values equal to '{ok}'"
+                        )
 
                 else:
-                    nagios.warning(
-                        f"Node with XPath '{xpath}' found but not defined"
-                    )
+                    node = xml.parse(xpath=xpath)
+
+                    if node:
+                        nagios.ok(f"Node with XPath '{xpath}' found")
+
+                    else:
+                        nagios.warning(
+                            f"Node with XPath '{xpath}' found but not defined"
+                        )
+
+            except CriticalException as e:
+                nagios.critical(str(e))
+                continue
+
+            except WarningException as e:
+                nagios.warning(str(e))
+                continue
+
+            except Exception as e:
+                nagios.unknown(str(e))
+                continue
+
+        if len(args.xpath) > 1:
+            if nagios.get_code() == 0:
+                nagios.set_final_msg("All the checks pass")
+
+            else:
+                nagios.set_final_msg("Some checks do not pass")
+
+    else:
+        try:
+            ok = xml.parse()
+            if ok:
+                nagios.ok("Response OK")
+
+            else:
+                nagios.unknown("Parsing problem")
 
         except CriticalException as e:
             nagios.critical(str(e))
-            continue
-
-        except WarningException as e:
-            nagios.warning(str(e))
-            continue
 
         except Exception as e:
             nagios.unknown(str(e))
-            continue
-
-    if len(args.xpath) > 1:
-        if nagios.get_code() == 0:
-            nagios.set_final_msg("All the checks pass")
-
-        else:
-            nagios.set_final_msg("Some checks do not pass")
 
     print(nagios.get_msg())
     sys.exit(nagios.get_code())

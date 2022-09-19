@@ -6,16 +6,16 @@ The package contains the generic `check_xml` probe which remotely checks XML. It
 
 ### Required arguments
 
-The probe has three required arguments: 
+The probe has two required arguments: 
 
 * `-u`, `--url` which is the URL of the XML document we wish to inspect,
-* `-t`, `--timeout` which is the time in seconds after which the connection will time out,
-* `-x`, `--xpath` which is XPath for the node we wish to inspect; this one can also be provided as a space separated list of multiple XPaths for multiple nodes we wish to inspect in the same document.
+* `-t`, `--timeout` which is the time in seconds after which the connection will time out.
 
 ### Optional arguments
 
-In addition to the three mandatory arguments, probe also has five optional:
+In addition to the three mandatory arguments, probe also has six optional:
 
+* `-x`, `--xpath` which is XPath for the node we wish to inspect; this one can also be provided as a space separated list of multiple XPaths for multiple nodes we wish to inspect in the same document,
 * `--ok` node value which will return OK status; each other value will return critical
   * in case there are multiple nodes with the same XPath, the probe will return OK status only if all the nodes' values are equal to the value provided by the argument,
   * in case there are multiple nodes with the same XPath, the probe will return WARNING status if some (but not all!) of the nodes' values are equal to the value provided by the argument,
@@ -40,6 +40,13 @@ Optional arguments `-w` and `-c` can be used together, but all the rest cannot b
 
 
 ## Examples
+
+Checking that XML document is valid
+
+```
+# /usr/libexec/argo/probes/xml/check_xml -u https://xml.argo.eu/ -t 30 
+OK - Response OK
+```
 
 Checking that XML document contains node with XPath `/root/test/path`
 
