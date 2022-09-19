@@ -19,6 +19,9 @@ notes:
       "  If there are multiple XPaths given, all the optional arguments must " \
       "have prefix of the form '<node_name>:'\n\n" \
       "examples:\n" \
+      "  Checking that XML document is valid\n" \
+      "  /usr/libexec/argo/probes/xml/check_xml -u https://xml.argo.eu/ " \
+      "-t 30\n\n" \
       "  Checking that XML document contains a node\n" \
       "  /usr/libexec/argo/probes/xml/check_xml -u https://xml.argo.eu/ " \
       "-t 30 -x /root/test/path\n\n" \
@@ -35,8 +38,8 @@ notes:
 
 
 USAGE = """
-  Probe that checks the value of elements in given XML using XPath
-    -u URL -t TIMEOUT -x XPATH [XPATH ... ] [--ok [OK [OK ...]] | 
+  Probe that checks the validity of XML response given the URL
+    -u URL -t TIMEOUT [-x XPATH [XPATH ... ]] [--ok [OK [OK ...]] | 
 """.rstrip("\n") + \
         "[[-w [WARNING [WARNING ...]] [-c [CRITICAL [CRITICAL ...]]] | " \
         "[--age [AGE [AGE ...]] --time-format TIME_FORMAT]]] " \
