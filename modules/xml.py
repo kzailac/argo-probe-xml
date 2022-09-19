@@ -34,22 +34,26 @@ class XML:
         else:
             return response.content
 
-    def parse(self, xpath):
+    def parse(self, xpath=None):
         try:
             tree = etree.parse(io.BytesIO(self._get()))
 
-            elements = tree.xpath(xpath)
+            if xpath:
+                elements = tree.xpath(xpath)
 
-            if len(elements) == 0:
-                raise CriticalException(
-                    f"Unable to find element with XPath {xpath}"
-                )
+                if len(elements) == 0:
+                    raise CriticalException(
+                        f"Unable to find element with XPath {xpath}"
+                    )
 
-            elif len(elements) == 1:
-                return elements[0].text
+                elif len(elements) == 1:
+                    return elements[0].text
+
+                else:
+                    return [item.text for item in elements]
 
             else:
-                return [item.text for item in elements]
+                return True
 
         except XMLSyntaxError as e:
             raise CriticalException(f"Unable to parse xml: {str(e)}")
