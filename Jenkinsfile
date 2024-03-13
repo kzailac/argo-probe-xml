@@ -22,8 +22,8 @@ pipeline {
                     }
                     stages {
                         stage('Test CentOS 7') {
-                            echo 'Executing unit tests @ CentOS 7'
                             steps {
+                                echo 'Executing unit tests @ CentOS 7'
                                 sh '''
                                     cd $WORKSPACE/$PROJECT_DIR/
                                     rm -f tests/argo_probe_xml
@@ -56,8 +56,8 @@ pipeline {
                     }
                     stages {
                         stage('Test Rocky 9') {
-                            echo 'Executing unit tests @ Rocky 9'
                             steps {
+                                echo 'Executing unit tests @ Rocky 9'
                                 sh '''
                                     cd $WORKSPACE/$PROJECT_DIR/
                                     rm -f tests/argo_probe_xml
