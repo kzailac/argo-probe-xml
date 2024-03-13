@@ -12,8 +12,16 @@ Prefix:        %{_prefix}
 BuildArch:     noarch
 
 BuildRequires: python3-devel
+
+%if 0%{?el7}
 Requires: python36-requests
 Requires: python36-lxml
+
+%else
+Requires: python3-requests
+Requires: python3-lxml
+
+%endif
 
 
 %description
