@@ -2,7 +2,7 @@
 
 Summary:       ARGO probe that checks the value of elements in given XML using XPath
 Name:          argo-probe-xml
-Version:       0.1.1
+Version:       0.1.2
 Release:       1%{?dist}
 Source0:       %{name}-%{version}.tar.gz
 License:       ASL 2.0
@@ -50,6 +50,8 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Thu Apr 4 2024 Katarina Zailac <kzailac@srce.hr> - 0.1.2-1
+- AO-930 Create Rocky 9 rpm for argo-probe-xml
 * Tue Sep 28 2022 Katarina Zailac <kzailac@srce.hr> - 0.1.1-1
 - ARGO-3993 Improve XML probe to just check if the data is in the XML format
 - ARGO-3957 Create generic XML probe
